@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <title>HELLDIVERS 2 - STRATAGEM & TERMINAL TRAINING</title>
     <style>
-        /* 기존 스타일 유지 */
+        /* 메인 메뉴 스타일*/
         body { background-color: #0b0e11; color: white; font-family: 'Segoe UI', sans-serif; display: flex; height: 100vh; margin: 0; overflow: hidden; }
         #sidebar { width: 340px; background-color: #161b22; border-right: 1px solid #30363d; display: flex; flex-direction: column; }
         #loadout-section { padding: 15px; background: rgba(255, 219, 0, 0.03); border-bottom: 2px solid #ffdb00; max-height: 400px; overflow-y: auto; }
@@ -23,12 +23,12 @@
 
         #main { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(circle, #1c2128 0%, #0b0e11 100%); position: relative; }
         
-        /* [수정] 상단 컨트롤 바 레이아웃 */
+        /*컨트롤 바 레이아웃*/
         #mode-controls { position: absolute; top: 30px; display: flex; gap: 20px; align-items: center; background: rgba(0,0,0,0.3); padding: 10px 20px; border-radius: 50px; }
         .btn-mode { padding: 8px 18px; background: transparent; border: 2px solid #ffdb00; color: #ffdb00; cursor: pointer; font-weight: bold; border-radius: 20px; transition: 0.3s; font-size: 12px; }
         .btn-mode.on { background: #ffdb00; color: #000; box-shadow: 0 0 15px #ffdb00; }
 
-        /* [신규] 터미널 자릿수 슬라이더 */
+        /*터미널 자릿수 슬라이더*/
         .terminal-config { display: flex; align-items: center; gap: 10px; color: #00ffcc; font-size: 12px; font-weight: bold; font-family: monospace; border-left: 1px solid #444; padding-left: 20px; }
         #digit-slider { cursor: pointer; accent-color: #00ffcc; width: 80px; }
 
@@ -219,7 +219,7 @@
         let isTerminalMode = false;
         let terminalLength = 8; // 기본 자릿수
 
-        // 슬라이더 값 업데이트 및 터미널 갱신
+        /*슬라이더, 터미널 모드*/
         function updateDigitValue(val) {
             terminalLength = parseInt(val);
             document.getElementById('digit-value').innerText = val;
