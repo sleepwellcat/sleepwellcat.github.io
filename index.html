@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>HELLDIVERS 2 - STRATAGEM & TERMINAL TRAINING</title>
+    <style>
+        /* 기존 스타일 유지 */
+        body { background-color: #0b0e11; color: white; font-family: 'Segoe UI', sans-serif; display: flex; height: 100vh; margin: 0; overflow: hidden; }
+        #sidebar { width: 340px; background-color: #161b22; border-right: 1px solid #30363d; display: flex; flex-direction: column; }
+        #loadout-section { padding: 15px; background: rgba(255, 219, 0, 0.03); border-bottom: 2px solid #ffdb00; max-height: 400px; overflow-y: auto; }
+        .section-title { color: #ffdb00; font-size: 11px; font-weight: bold; margin-bottom: 10px; letter-spacing: 2px; text-transform: uppercase; }
+        .search-container { padding: 15px; border-bottom: 1px solid #30363d; }
+        #search-input { width: 100%; padding: 10px; border-radius: 4px; border: 1px solid #30363d; background: #0b0e11; color: white; outline: none; box-sizing: border-box; }
+        #menu-list { flex: 1; overflow-y: auto; padding: 10px 15px; }
+
+        .menu-item { display: flex; align-items: center; margin-bottom: 6px; background: #21262d; border-radius: 6px; cursor: pointer; transition: 0.2s; border: 1px solid transparent; overflow: hidden; }
+        .menu-item:hover { background: #30363d; border-color: #ffdb00; }
+        .menu-item.active-selection { border-color: #ffdb00; background: #2d333b; }
+        .item-content { display: flex; align-items: center; gap: 12px; padding: 10px 15px; flex: 1; }
+        .item-content img { width: 32px; height: 32px; pointer-events: none; }
+        .bookmark-btn { padding: 10px 18px; font-size: 22px; color: #333; transition: 0.2s; border-left: 1px solid rgba(255, 255, 255, 0.05); }
+        .bookmark-btn.active { color: #ffdb00; text-shadow: 0 0 10px #ffdb00; }
+
+        #main { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(circle, #1c2128 0%, #0b0e11 100%); position: relative; }
+        
+        /* [수정] 상단 컨트롤 바 레이아웃 */
+        #mode-controls { position: absolute; top: 30px; display: flex; gap: 20px; align-items: center; background: rgba(0,0,0,0.3); padding: 10px 20px; border-radius: 50px; }
+        .btn-mode { padding: 8px 18px; background: transparent; border: 2px solid #ffdb00; color: #ffdb00; cursor: pointer; font-weight: bold; border-radius: 20px; transition: 0.3s; font-size: 12px; }
+        .btn-mode.on { background: #ffdb00; color: #000; box-shadow: 0 0 15px #ffdb00; }
+
+        /* [신규] 터미널 자릿수 슬라이더 */
+        .terminal-config { display: flex; align-items: center; gap: 10px; color: #00ffcc; font-size: 12px; font-weight: bold; font-family: monospace; border-left: 1px solid #444; padding-left: 20px; }
+        #digit-slider { cursor: pointer; accent-color: #00ffcc; width: 80px; }
+
+        .box { border: 2px solid #ffdb00; width: 550px; padding: 50px; background-color: rgba(22, 27, 34, 0.95); border-radius: 10px; text-align: center; position: relative; transition: 0.3s; }
+        .box.terminal-active { border-color: #00ffcc; box-shadow: 0 0 30px rgba(0, 255, 204, 0.2); }
+        .terminal-grid { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: repeating-linear-gradient(0deg, rgba(0,255,204,0.03) 0px, rgba(0,255,204,0.03) 1px, transparent 1px, transparent 3px); pointer-events: none; opacity: 0; transition: 0.3s; }
+        .box.terminal-active .terminal-grid { opacity: 1; }
+
+        #main-icon { width: 80px; height: 80px; margin-bottom: 15px; }
+        .title { color: #ffdb00; font-size: 24px; margin-bottom: 20px; font-weight: 900; }
+        .terminal-title { color: #00ffcc !important; font-family: monospace; letter-spacing: 2px; }
+
+        .arrows { display: flex; justify-content: center; gap: 10px; min-height: 50px; align-items: center; flex-wrap: wrap; }
+        .arrow-item { width: 30px; height: 30px; background-color: #444; clip-path: polygon(50% 0%, 100% 50%, 75% 50%, 75% 100%, 25% 100%, 25% 50%, 0% 50%); transition: 0.1s; }
+        .up { transform: rotate(0deg); } .down { transform: rotate(180deg); } .left { transform: rotate(270deg); } .right { transform: rotate(90deg); }
+        .active-arrow { background-color: #ffdb00 !important; filter: drop-shadow(0 0 10px #ffdb00); }
+        .terminal-arrow { background-color: #00ffcc !important; filter: drop-shadow(0 0 10px #00ffcc); }
+
+        #timer-display { margin-top: 25px; font-size: 18px; color: #adff2f; font-family: monospace; }
+        #history { width: 240px; background-color: #161b22; border-left: 1px solid #30363d; padding: 20px; font-size: 12px; }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar">
+        <div id="loadout-section">
+            <div class="section-title">EQUIPPED LOADOUT</div>
+            <div id="loadout-list"></div>
+        </div>
+        <div class="search-container">
+            <input type="text" id="search-input" placeholder="Search..." oninput="renderAll()">
+        </div>
+        <div id="menu-list"></div>
+    </div>
+
+    <div id="main">
+        <div id="mode-controls">
+            <button id="blitz-btn" class="btn-mode" onclick="toggleBlitzMode()">BLITZ MODE</button>
+            <button id="terminal-btn" class="btn-mode" onclick="toggleTerminalMode()">TERMINAL MODE</button>
+            <div class="terminal-config">
+                <span>DIGITS: <span id="digit-value">8</span></span>
+                <input type="range" id="digit-slider" min="4" max="12" value="8" oninput="updateDigitValue(this.value)">
+            </div>
+        </div>
+
+        <div class="box" id="display-box">
+            <div class="terminal-grid"></div>
+            <img id="main-icon" src="" style="display:none;">
+            <div id="current-title" class="title">SELECT MODE</div>
+            <div id="display" class="arrows"></div>
+            <div id="timer-display">READY FOR DEPLOYMENT</div>
+        </div>
+    </div>
+
+    <div id="history">
+        <div class="section-title">MISSION LOG</div>
+        <div id="history-list"></div>
+    </div>
+
+    <script>
+        let stratagems = [
+  // 1. 통상 (General) ---
+  { id: 1, name: "증원", img: "reinforce.svg", command: ["w", "s", "d", "a", "w"], arrows: ["up", "down", "right", "left", "up"], bookmarked: false },
+  { id: 2, name: "SOS 신호기", img: "sos beacon.svg", command: ["w", "s", "d", "w"], arrows: ["up", "down", "right", "up"], bookmarked: false },
+  { id: 3, name: "재보급", img: "resupply.svg", command: ["s", "s", "w", "d"], arrows: ["down", "down", "up", "right"], bookmarked: false },
+  { id: 4, name: "이글 재무장", img: "eagle rearm.svg", command: ["w", "w", "a", "w", "d"], arrows: ["up", "up", "left", "up", "right"], bookmarked: false },
+
+  // 2. 임무 특수 (Mission Objectives) ---
+  { id: 10, name: "지옥폭탄", img: "hellbomb.svg", command: ["s", "w", "a", "s", "w", "d", "s", "w"], arrows: ["down", "up", "left", "down", "up", "right", "down", "up"], bookmarked: false },
+  { id: 11, name: "SEAF 야포", img: "seaf artillery.svg", command: ["d", "w", "w", "s"], arrows: ["right", "up", "up", "down"], bookmarked: false },
+  { id: 12, name: "SSSD 전달", img: "sssd delivery.svg", command: ["s", "s", "s", "w", "w"], arrows: ["down", "down", "down", "up", "up"], bookmarked: false },
+  { id: 13, name: "지진 탐사기 & 탐광 드릴", img: "seismic probe.svg", command: ["w", "w", "a", "d", "s", "s"], arrows: ["up", "up", "left", "right", "down", "down"], bookmarked: false },
+  { id: 14, name: "슈퍼지구 깃발", img: "super earth flag.svg", command: ["s", "w", "s", "w"], arrows: ["down", "up", "down", "up"], bookmarked: false },
+  { id: 15, name: "데이터 업로드", img: "upload data.svg", command: ["s", "s", "w", "w", "w"], arrows: ["down", "down", "up", "up", "up"], bookmarked: false },
+  { id: 16, name: "하이브 브레이커 드릴", img: "hive breaker drill.svg", command: ["s", "s", "a", "d", "s", "s"], arrows: ["down", "down", "left", "right", "down", "down"], bookmarked: false },
+  { id: 17, name: "카고 컨테이너", img: "cargo container.svg", command: ["s", "w", "s", "s"], arrows: ["down", "up", "down", "down"], bookmarked: false },
+  { id: 18, name: "슈퍼 구축함 호출", img: "call extraction.svg", command: ["w", "w", "a", "d", "w", "w"], arrows: ["up", "up", "left", "right", "up", "up"], bookmarked: false },
+  { id: 19, name: "궤도 조명탄", img: "orbital illumination flare.svg", command: ["d", "d", "a", "a"], arrows: ["right", "right", "left", "left"], bookmarked: false },
+  { id: 20, name: "다크 플루이드 용기", img: "dark fluid vessel.svg", command: ["w", "a", "d", "s", "w", "w"], arrows: ["up", "left", "right", "down", "up", "up"], bookmarked: false },
+  { id: 21, name: "지각 표면 드릴", img: "tectonic drill.svg", command: ["w", "s", "a", "d", "w", "w"], arrows: ["up", "down", "left", "right", "up", "up"], bookmarked: false },
+
+  // 3. 궤도 (Orbital) ---
+  { id: 30, name: "궤도 정밀 타격", img: "orbital precision strike.svg", command: ["d", "d", "w"], arrows: ["right", "right", "up"], bookmarked: false },
+  { id: 31, name: "궤도 개틀링 폭격", img: "orbital gatling barrage.svg", command: ["d", "s", "a", "w", "w"], arrows: ["right", "down", "left", "up", "up"], bookmarked: false },
+  { id: 32, name: "소이 궤도 개틀링 폭격", img: "incendiary orbital gatling.svg", command: ["d", "s", "a", "w", "s"], arrows: ["right", "down", "left", "up", "down"], bookmarked: false },
+  { id: 33, name: "궤도 공중폭발 타격", img: "orbital airburst strike.svg", command: ["d", "d", "d"], arrows: ["right", "right", "right"], bookmarked: false },
+  { id: 34, name: "궤도 120mm 고폭 폭격", img: "orbital 120mm he barrage.svg", command: ["d", "d", "s", "a", "d", "s"], arrows: ["right", "right", "down", "left", "right", "down"], bookmarked: false },
+  { id: 35, name: "궤도 EMS 120mm 고폭 폭격", img: "orbital ems 120mm.svg", command: ["d", "d", "s", "a", "d", "w"], arrows: ["right", "right", "down", "left", "right", "up"], bookmarked: false },
+  { id: 36, name: "궤도 380mm 고폭 폭격", img: "orbital 380mm he barrage.svg", command: ["d", "s", "w", "w", "a", "s", "s"], arrows: ["right", "down", "up", "up", "left", "down", "down"], bookmarked: false },
+  { id: 37, name: "궤도 이동 폭격", img: "orbital walking barrage.svg", command: ["d", "s", "d", "s", "d", "s"], arrows: ["right", "down", "right", "down", "right", "down"], bookmarked: false },
+  { id: 38, name: "연막 강화 이동 폭격", img: "smoke walking barrage.svg", command: ["d", "s", "d", "s", "d", "w"], arrows: ["right", "down", "right", "down", "right", "up"], bookmarked: false },
+  { id: 39, name: "궤도 레이저", img: "orbital laser.svg", command: ["d", "s", "w", "d", "s"], arrows: ["right", "down", "up", "right", "down"], bookmarked: false },
+  { id: 40, name: "궤도 레일캐넌 타격", img: "orbital railcannon strike.svg", command: ["d", "w", "s", "s", "d"], arrows: ["right", "up", "down", "down", "right"], bookmarked: false },
+  { id: 41, name: "궤도 가스 타격", img: "orbital gas strike.svg", command: ["d", "d", "s", "d"], arrows: ["right", "right", "down", "right"], bookmarked: false },
+  { id: 42, name: "궤도 EMS 타격", img: "orbital ems strike.svg", command: ["d", "d", "a", "s"], arrows: ["right", "right", "left", "down"], bookmarked: false },
+  { id: 43, name: "궤도 연막 타격", img: "orbital smoke strike.svg", command: ["d", "d", "s", "w"], arrows: ["right", "right", "down", "up"], bookmarked: false },
+  { id: 44, name: "궤도 네이팜 폭격", img: "orbital napalm barrage.svg", command: ["d", "d", "s", "a", "w", "w"], arrows: ["right", "right", "down", "left", "up", "up"], bookmarked: false },
+
+  // 4. 이글 격납고 (Eagle) ---
+  { id: 50, name: "이글 기총소사", img: "eagle strafing run.svg", command: ["w", "d", "d"], arrows: ["up", "right", "right"], bookmarked: false },
+  { id: 51, name: "이글 공중타격", img: "eagle airstrike.svg", command: ["w", "d", "s", "d"], arrows: ["up", "right", "down", "right"], bookmarked: false },
+  { id: 52, name: "이글 집속탄", img: "eagle cluster bomb.svg", command: ["w", "d", "s", "s", "d"], arrows: ["up", "right", "down", "down", "right"], bookmarked: false },
+  { id: 53, name: "이글 네이팜 공중타격", img: "eagle napalm strike.svg", command: ["w", "d", "s", "w"], arrows: ["up", "right", "down", "up"], bookmarked: false },
+  { id: 54, name: "이글 연막 타격", img: "eagle smoke strike.svg", command: ["w", "d", "w", "s"], arrows: ["up", "right", "up", "down"], bookmarked: false },
+  { id: 55, name: "이글 110mm 로켓 포드", img: "eagle 110mm rocket pods.svg", command: ["w", "d", "w", "a"], arrows: ["up", "right", "up", "left"], bookmarked: false },
+  { id: 56, name: "이글 500kg 폭탄", img: "eagle 500kg bomb.svg", command: ["w", "d", "s", "s", "s"], arrows: ["up", "right", "down", "down", "down"], bookmarked: false },
+
+  // 5. 지원 무기 (Support Weapons) ---
+  { id: 60, name: "MG-43 기관총", img: "machine gun.svg", command: ["s", "a", "s", "w", "d"], arrows: ["down", "left", "down", "up", "right"], bookmarked: false },
+  { id: 61, name: "APW-1 대물소총", img: "Anti-Materiel Rifle.svg", command: ["s", "a", "d", "w", "s"], arrows: ["down", "left", "right", "up", "down"], bookmarked: false },
+  { id: 62, name: "M-105 스털워트", img: "stalwart.svg", command: ["s", "a", "s", "w", "w", "a"], arrows: ["down", "left", "down", "up", "up", "left"], bookmarked: false },
+  { id: 63, name: "MG-206 중기관총", img: "heavy machine gun.svg", command: ["s", "a", "w", "w", "a"], arrows: ["down", "left", "up", "up", "left"], bookmarked: false },
+  { id: 64, name: "M-1000 맥시건", img: "maxigun.svg", command: ["s", "a", "s", "w", "w", "d"], arrows: ["down", "left", "down", "up", "up", "right"], bookmarked: false },
+  { id: 65, name: "RS-422 레일건", img: "railgun.svg", command: ["s", "d", "s", "w", "a", "d"], arrows: ["down", "right", "down", "up", "left", "right"], bookmarked: false },
+  { id: 66, name: "EAT-17 일회성 대전차", img: "Expendable Anti-Tank.svg", command: ["s", "s", "a", "w", "d"], arrows: ["down", "down", "left", "up", "right"], bookmarked: false },
+  { id: 67, name: "MLS-4X 코만도", img: "commando.svg", command: ["s", "a", "w", "s", "d"], arrows: ["down", "left", "up", "down", "right"], bookmarked: false },
+  { id: 68, name: "EAT-700 일회성 네이팜", img: "Expendable Napalm.svg", command: ["s", "s", "a", "s", "w"], arrows: ["down", "down", "left", "down", "up"], bookmarked: false },
+  { id: 69, name: "MS-11 솔로 사일로", img: "solo silo.svg", command: ["s", "s", "d", "w", "s"], arrows: ["down", "down", "right", "up", "down"], bookmarked: false },
+  { id: 70, name: "EAT-411 평탄화기", img: "eat-411.svg", command: ["s", "s", "w", "a", "d"], arrows: ["down", "down", "up", "left", "right"], bookmarked: false },
+  { id: 71, name: "GR-8 무반동포", img: "recoiless rifle.svg", command: ["s", "a", "d", "d", "a"], arrows: ["down", "left", "right", "right", "left"], bookmarked: false },
+  { id: 72, name: "AC-8 오토캐논", img: "autocannon.svg", command: ["s", "a", "s", "w", "w", "d"], arrows: ["down", "left", "down", "up", "up", "right"], bookmarked: false },
+  { id: 73, name: "FAF-14 스피어", img: "spear.svg", command: ["s", "s", "w", "s", "s"], arrows: ["down", "down", "up", "down", "down"], bookmarked: false },
+  { id: 74, name: "GL-21 유탄 발사기", img: "grenade launcher.svg", command: ["s", "a", "w", "a", "s"], arrows: ["down", "left", "up", "left", "down"], bookmarked: false },
+  { id: 75, name: "RL-77 공중폭발 로켓 발사기", img: "airburst rocket launcher.svg", command: ["s", "w", "w", "a", "d"], arrows: ["down", "up", "up", "left", "right"], bookmarked: false },
+  { id: 76, name: "StA-X3 W.A.S.P. 발사기", img: "StA-X3 W.A.S.P. Launcher.svg", command: ["s", "s", "w", "s", "d"], arrows: ["down", "down", "up", "down", "right"], bookmarked: false },
+  { id: 77, name: "B/MD C4 팩", img: "c4 pack.svg", command: ["s", "a", "w", "s", "s"], arrows: ["down", "left", "up", "down", "down"], bookmarked: false },
+  { id: 78, name: "GL-28 벨트식 유탄 발사기", img: "belt grenade launcher.svg", command: ["s", "a", "w", "w", "d"], arrows: ["down", "left", "up", "up", "right"], bookmarked: false },
+  { id: 79, name: "FLAM-40 화염방사기", img: "flamethrower.svg", command: ["s", "a", "w", "s", "w"], arrows: ["down", "left", "up", "down", "up"], bookmarked: false },
+  { id: 80, name: "B/FLAM-80 크리메이터", img: "cremator.svg", command: ["s", "a", "s", "w", "w"], arrows: ["down", "left", "down", "up", "up"], bookmarked: false },
+  { id: 81, name: "LAS-98 레이저 캐넌", img: "laser cannon.svg", command: ["s", "a", "s", "w", "a"], arrows: ["down", "left", "down", "up", "left"], bookmarked: false },
+  { id: 82, name: "LAS-99 퀘이사 캐넌", img: "quasar cannon.svg", command: ["s", "s", "w", "a", "d"], arrows: ["down", "down", "up", "left", "right"], bookmarked: false },
+  { id: 83, name: "ARC-3 아크 발사기", img: "arc thrower.svg", command: ["s", "d", "s", "w", "a", "a"], arrows: ["down", "right", "down", "up", "left", "left"], bookmarked: false },
+  { id: 84, name: "GL-52 디에스컬레이터", img: "deescalator.svg", command: ["s", "d", "w", "s", "s"], arrows: ["down", "right", "up", "down", "down"], bookmarked: false },
+  { id: 85, name: "PLAS-45 에포크", img: "epoch.svg", command: ["s", "d", "s", "w", "w", "d"], arrows: ["down", "right", "down", "up", "up", "right"], bookmarked: false },
+  { id: 86, name: "TX-41 스터릴라이저", img: "sterilizer.svg", command: ["s", "a", "s", "w", "w", "d"], arrows: ["down", "left", "down", "up", "up", "right"], bookmarked: false },
+  { id: 87, name: "S-11 작살총", img: "Speargun", command: ["s", "d", "s", "s", "w"], arrows: ["down", "right", "down", "down", "up"], bookmarked: false },
+  { id: 88, name: "CQC-1 원 트루 플래그", img: "one true flag.svg", command: ["s", "w", "d", "s"], arrows: ["down", "up", "right", "down"], bookmarked: false },
+  { id: 89, name: "CQC-9 고엽 도구", img: "Defoliation Tool.svg", command: ["s", "w", "a", "s", "s"], arrows: ["down", "up", "left", "down", "down"], bookmarked: false },
+  { id: 90, name: "CQC-20 벽 폭파 망치", img: "CQC-20.svg", command: ["s", "w", "d", "d", "s"], arrows: ["down", "up", "right", "right", "down"], bookmarked: false },
+
+  // --- 6. 배낭 (Backpacks) ---
+  { id: 100, name: "가드 독", img: "guard dog.svg", command: ["s", "w", "a", "w", "d", "s"], arrows: ["down", "up", "left", "up", "right", "down"], bookmarked: false },
+  { id: 101, name: "가드 독 로버", img: "guard dog rover.svg", command: ["s", "w", "a", "w", "d", "d"], arrows: ["down", "up", "left", "up", "right", "right"], bookmarked: false },
+  { id: 102, name: "가드 독 독 브레스", img: "Guard Dog Breath.svg", command: ["s", "w", "a", "w", "d", "w"], arrows: ["down", "up", "left", "up", "right", "up"], bookmarked: false },
+  { id: 103, name: "가드 독 K-9", img: "Guard Dog K-9.svg", command: ["s", "w", "a", "w", "d", "a"], arrows: ["down", "up", "left", "up", "right", "left"], bookmarked: false },
+  { id: 104, name: "가드 독 핫 도그", img: "Guard Dog Hot Dog.svg", command: ["s", "w", "a", "w", "d", "s"], arrows: ["down", "up", "left", "up", "right", "down"], bookmarked: false },
+  { id: 105, name: "점프 팩", img: "jump pack.svg", command: ["s", "w", "w", "s", "w"], arrows: ["down", "up", "up", "down", "up"], bookmarked: false },
+  { id: 106, name: "호버 팩", img: "hover pack.svg", command: ["s", "w", "w", "s", "s"], arrows: ["down", "up", "up", "down", "down"], bookmarked: false },
+  { id: 107, name: "워프 팩", img: "warp pack.svg", command: ["s", "w", "w", "d", "d"], arrows: ["down", "up", "up", "right", "right"], bookmarked: false },
+  { id: 108, name: "탄도 방패 배낭", img: "ballistic shield backpack.svg", command: ["s", "a", "s", "s", "w", "a"], arrows: ["down", "left", "down", "down", "up", "left"], bookmarked: false },
+  { id: 109, name: "방어막 생성 팩", img: "shield generator pack.svg", command: ["s", "w", "a", "d", "a", "d"], arrows: ["down", "up", "left", "right", "left", "right"], bookmarked: false },
+  { id: 110, name: "방향 방패", img: "directional shield.svg", command: ["s", "w", "a", "s", "d"], arrows: ["down", "up", "left", "down", "right"], bookmarked: false },
+  { id: 111, name: "보급 팩", img: "supply pack.svg", command: ["s", "a", "s", "w", "w", "s"], arrows: ["down", "left", "down", "up", "up", "down"], bookmarked: false },
+  { id: 112, name: "휴대용 지옥폭탄", img: "Hellbomb Portable.svg", command: ["s", "w", "a", "s", "w", "d"], arrows: ["down", "up", "left", "down", "up", "right"], bookmarked: false },
+
+  // --- 7. 탑승물 (Vehicles) ---
+  { id: 120, name: "EXO-45 애국자 엑소슈트", img: "Patriot Exosuit.svg", command: ["a", "s", "d", "w", "a", "s", "s"], arrows: ["left", "down", "right", "up", "left", "down", "down"], bookmarked: false },
+  { id: 121, name: "EXO-49 해방자 엑소슈트", img: "Emancipator Exosuit.svg", command: ["a", "s", "d", "w", "a", "s", "w"], arrows: ["left", "down", "right", "up", "left", "down", "up"], bookmarked: false },
+  { id: 122, name: "M-102 고속 정찰 차량", img: "Fast Recon Vehicle.svg", command: ["a", "s", "d", "s", "d", "s", "w",], arrows: ["left", "down", "right", "down", "right", "down", "up",], bookmarked: false },
+  { id: 123, name: "TD-220 바스티온 Mk XVI", img: "Bastion MK XVI.svg", command: ["a", "s", "d", "w", "s", "s"], arrows: ["left", "down", "right", "up", "down", "down"], bookmarked: false },
+
+  // --- 8. 센트리 및 방어 (Sentries & Defense) ---
+  { id: 130, name: "기관총 센트리", img: "machine gun sentry.svg", command: ["s", "w", "d", "d", "w"], arrows: ["down", "up", "right", "right", "up"], bookmarked: false },
+  { id: 131, name: "개틀링 센트리", img: "gatling sentry.svg", command: ["s", "w", "d", "a"], arrows: ["down", "up", "right", "left"], bookmarked: false },
+  { id: 132, name: "박격포 센트리", img: "mortar sentry.svg", command: ["s", "w", "d", "d", "s"], arrows: ["down", "up", "right", "right", "down"], bookmarked: false },
+  { id: 133, name: "오토캐논 센트리", img: "autocannon sentry.svg", command: ["s", "w", "d", "w", "a", "w"], arrows: ["down", "up", "right", "up", "left", "up"], bookmarked: false },
+  { id: 134, name: "로켓 센트리", img: "rocket sentry.svg", command: ["s", "w", "d", "d", "a"], arrows: ["down", "up", "right", "right", "left"], bookmarked: false },
+  { id: 135, name: "EMS 박격포 센트리", img: "ems mortar sentry.svg", command: ["s", "w", "d", "s", "d"], arrows: ["down", "up", "right", "down", "right"], bookmarked: false },
+  { id: 136, name: "테슬라 탑", img: "tesla tower.svg", command: ["s", "w", "d", "w", "a", "d"], arrows: ["down", "up", "right", "up", "left", "right"], bookmarked: false },
+  { id: 137, name: "화염 센트리", img: "flame sentry.svg", command: ["s", "w", "d", "s", "s"], arrows: ["down", "up", "right", "down", "down"], bookmarked: false },
+  { id: 138, name: "레이저 센트리", img: "laser sentry.svg", command: ["s", "w", "d", "w", "d"], arrows: ["down", "up", "right", "up", "right"], bookmarked: false },
+  { id: 139, name: "가스 박격포 센트리", img: "gas mortar sentry.svg", command: ["s", "w", "d", "s", "a"], arrows: ["down", "up", "right", "down", "left"], bookmarked: false },
+  { id: 140, name: "대인 지뢰 매설 지역", img: "Anti-Personnel Minefield.svg", command: ["s", "a", "w", "d"], arrows: ["down", "left", "up", "right"], bookmarked: false },
+  { id: 141, name: "소이 지뢰", img: "incendiary mines.svg", command: ["s", "a", "a", "s"], arrows: ["down", "left", "left", "down"], bookmarked: false },
+  { id: 142, name: "대전차 지뢰", img: "Anti-Tank Mines.svg", command: ["s", "a", "a", "w"], arrows: ["down", "left", "left", "up"], bookmarked: false },
+  { id: 143, name: "가스 지뢰", img: "gas mine.svg", command: ["s", "a", "a", "d"], arrows: ["down", "left", "left", "right"], bookmarked: false },
+  { id: 144, name: "중기관총 거치포", img: "hmg emplacement.svg", command: ["s", "w", "a", "d", "d", "a"], arrows: ["down", "up", "left", "right", "right", "left"], bookmarked: false },
+  { id: 145, name: "대전차 거치포", img: "Anti-Tank Emplacement.svg", command: ["s", "w", "a", "d", "s", "s"], arrows: ["down", "up", "left", "right", "down", "down"], bookmarked: false },
+  { id: 146, name: "척탄 흉벽", img: "Grenadier Battlement.svg", command: ["s", "w", "a", "d", "w", "w"], arrows: ["down", "up", "left", "right", "up", "up"], bookmarked: false },
+  { id: 147, name: "방어막 생성 릴레이", img: "shield generator relay.svg", command: ["s", "s", "a", "d", "a", "d"], arrows: ["down", "down", "left", "right", "left", "right"], bookmarked: false }
+];
+
+ let currentStratagem = null;
+        let currentIndex = 0;
+        let startTime = null;
+        let isTiming = false;
+        let isBlitzMode = false;
+        let isTerminalMode = false;
+        let terminalLength = 8; // 기본 자릿수
+
+        // 슬라이더 값 업데이트 및 터미널 갱신
+        function updateDigitValue(val) {
+            terminalLength = parseInt(val);
+            document.getElementById('digit-value').innerText = val;
+            if(isTerminalMode) startTerminal(); // 설정 변경 시 즉시 새 문제 생성
+        }
+
+        function generateTerminalTask() {
+            const keys = ["w", "a", "s", "d"];
+            const arrows = {"w":"up", "a":"left", "s":"down", "d":"right"};
+            let task = { name: "TERMINAL MODE", command: [], arrows: [] };
+            for(let i=0; i < terminalLength; i++) {
+                let k = keys[Math.floor(Math.random() * 4)];
+                task.command.push(k);
+                task.arrows.push(arrows[k]);
+            }
+            return task;
+        }
+
+        function toggleTerminalMode() {
+            isTerminalMode = !isTerminalMode;
+            isBlitzMode = false;
+            updateModeButtons();
+            if(isTerminalMode) startTerminal();
+        }
+
+        function toggleBlitzMode() {
+            if(stratagems.filter(s => s.bookmarked).length === 0) {
+                alert("로드아웃에 스트라타젬을 먼저 추가하세요!"); return;
+            }
+            isBlitzMode = !isBlitzMode;
+            isTerminalMode = false;
+            updateModeButtons();
+            if(isBlitzMode) startRandomBlitz();
+        }
+
+        function updateModeButtons() {
+            document.getElementById('blitz-btn').classList.toggle('on', isBlitzMode);
+            document.getElementById('terminal-btn').classList.toggle('on', isTerminalMode);
+            document.getElementById('display-box').classList.toggle('terminal-active', isTerminalMode);
+        }
+
+        function startTerminal() {
+            currentStratagem = generateTerminalTask();
+            setupDisplay(true);
+        }
+
+        function startRandomBlitz() {
+            const bookmarked = stratagems.filter(s => s.bookmarked);
+            currentStratagem = bookmarked[Math.floor(Math.random() * bookmarked.length)];
+            setupDisplay(false);
+        }
+
+        function setupDisplay(isTerminal) {
+            currentIndex = 0; startTime = null; isTiming = false;
+            document.getElementById('timer-display').innerText = isTerminal ? "SYSTEM READY..." : "AWAITING INPUT";
+            document.getElementById('current-title').innerText = currentStratagem.name;
+            document.getElementById('current-title').classList.toggle('terminal-title', isTerminal);
+            
+            const icon = document.getElementById('main-icon');
+            if(isTerminal) icon.style.display = 'none';
+            else { icon.src = currentStratagem.img; icon.style.display = 'inline-block'; }
+
+            document.getElementById('display').innerHTML = currentStratagem.arrows.map((arrow, i) => 
+                `<span id="step${i}" class="arrow-item ${arrow}"></span>`
+            ).join('');
+            renderAll();
+        }
+
+        function selectStratagem(id) {
+            isTerminalMode = false; isBlitzMode = false;
+            updateModeButtons();
+            currentStratagem = stratagems.find(s => s.id === id);
+            setupDisplay(false);
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if(document.activeElement.id === 'search-input' || !currentStratagem) return;
+            const key = e.key.toLowerCase();
+            if(!["w","a","s","d"].includes(key)) return;
+
+            if(!isTiming) { startTime = performance.now(); isTiming = true; }
+
+            if(key === currentStratagem.command[currentIndex]) {
+                const step = document.getElementById('step' + currentIndex);
+                step.classList.add(isTerminalMode ? 'terminal-arrow' : 'active-arrow');
+                currentIndex++;
+
+                if(currentIndex === currentStratagem.command.length) {
+                    const time = ((performance.now() - startTime)/1000).toFixed(3);
+                    document.getElementById('timer-display').innerText = `UPLINK SUCCESS: ${time}s`;
+                    addHistory(currentStratagem.name + ` (${currentStratagem.command.length})`, time);
+                    isTiming = false;
+                    setTimeout(() => {
+                        if(isTerminalMode) startTerminal();
+                        else if(isBlitzMode) startRandomBlitz();
+                        else setupDisplay(false);
+                    }, 600);
+                }
+            } else {
+                document.getElementById('timer-display').innerText = "CONNECTION FAILED";
+                isTiming = false;
+                setTimeout(() => isTerminalMode ? startTerminal() : setupDisplay(false), 400);
+            }
+        });
+
+        function renderAll() {
+            const search = document.getElementById('search-input').value.toLowerCase();
+            document.getElementById('loadout-list').innerHTML = stratagems.filter(s=>s.bookmarked).map(i=>createItemHTML(i)).join('');
+            document.getElementById('menu-list').innerHTML = stratagems.filter(i=>i.name.toLowerCase().includes(search)).map(i=>createItemHTML(i)).join('');
+        }
+        function createItemHTML(item) {
+            const star = item.bookmarked ? 'active' : '';
+            const active = (currentStratagem && currentStratagem.id === item.id) ? 'active-selection' : '';
+            return `<div class="menu-item ${active}"><div class="item-content" onclick="selectStratagem(${item.id})"><img src="${item.img}"><span>${item.name}</span></div><div class="bookmark-btn ${star}" onclick="toggleBookmark(event, ${item.id})">★</div></div>`;
+        }
+        function toggleBookmark(e, id) { e.stopPropagation(); const i = stratagems.find(s=>s.id===id); if(!i.bookmarked && stratagems.filter(s=>s.bookmarked).length>=8) return; i.bookmarked = !i.bookmarked; renderAll(); }
+        function addHistory(n, t) { const h = document.getElementById('history-list'); const d = document.createElement('div'); d.style="padding:5px 0; border-bottom:1px solid #333; display:flex; justify-content:space-between; color:#8b949e;"; d.innerHTML=`<span>${n}</span><span style="color:#ffdb00">${t}s</span>`; h.insertBefore(d, h.firstChild); }
+        renderAll();
+    </script>
+</body>
+</html>
